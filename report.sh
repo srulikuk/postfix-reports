@@ -105,7 +105,7 @@ elif [[ $r_type == weekly ]] ; then
 elif [[ $r_type == monthly ]] ; then
 
 	# Dates for filenames, regex and report text.
-	date[0]="$(date -d 'last month' "+%Y-%m-d")" # 2020-01-01
+	date[0]="$(date -d 'last month' "+%Y-%m-%d")" # 2020-01-01
 	date[1]="$(date -d 'last month' "+%b")" # Jan
 	loop_date=("${date[1]}")
 	log_dir="${log_path}/${dir_month}"
