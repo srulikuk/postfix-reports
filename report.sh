@@ -55,7 +55,7 @@ fi
 
 # If email_report true check if py script exists
 if ((email_report == 1)) && ! [ -e "$py_mail" ]; then
-	printf '\n[ERROR:] file "%s" does not exist however email_report is set to true\nEXIT\N'
+	printf '\n[ERROR:] python send file does not exist however email_report is set to true\nEXIT\N'
 	exit 0
 fi
 
@@ -73,12 +73,14 @@ tmp_file[0]="$(mktemp /tmp/XXXXXXXXXXX)"
 tmp_file[1]="$(mktemp /tmp/XXXXXXXXXXX)"
 tmp_file[2]="$(mktemp /tmp/XXXXXXXXXXX)"
 
+day=()
 if [[ $r_type == daily ]] ; then
 
 	# Dates for filenames, regex and report text.
-	day="yesterday"
-	date[0]="$(date -d "$day" "+%Y-%m-%d")" # 2020-01-01
-	date[1]="$(date -d "$day" "+%b %e")" # Jan  1
+	day[0]="-d"
+	day[1]="yesterday"
+	date[0]="$(date -d "${day[1]}" "+%Y-%m-%d")" # 2020-01-01
+	date[1]="$(date -d "${day[1]}" "+%b %e")" # Jan  1
 	loop_date=("${date[1]}")
 	log_dir="${log_path}/${dir_day}"
 	log_smr="${log_dir}/${date[0]}_summary.log" # summary report dest
@@ -135,7 +137,7 @@ fi
 [[ -d $log_dir ]] || mkdir -p "$log_dir"
 
 # Create report
-pflogsumm -d $day "$mail_log" > "$log_smr"
+pflogsumm "${day[@]}" "$mail_log" > "$log_smr"
 if [[ -n $log_vbs ]] ; then
 	pflogsumm --verbose-msg-detail "$mail_log" > "$log_vbs"
 fi
