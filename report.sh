@@ -55,7 +55,8 @@ fi
 
 # If email_report true check if py script exists
 if ((email_report == 1)) && ! [ -e "$py_mail" ]; then
-	printf '\n[ERROR:] file "%s" does not exist however email_report is set to true\nEXIT\N' "$py_mail"
+	printf '\n[ERROR:] file "%s" does not exist however email_report is set to true\nEXIT\N'
+	exit 0
 fi
 
 cleanup()
