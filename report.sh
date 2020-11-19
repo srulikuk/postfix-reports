@@ -44,6 +44,7 @@ else
 		source "${current_dir}/report.vars"
 	else
 		printf '\n[ERROR:] Cannot find the vars source file\nEXIT\n'
+		exit 0
 	fi
 fi
 
@@ -55,7 +56,7 @@ fi
 
 # If email_report true check if py script exists
 if ((email_report == 1)) && ! [ -e "$py_mail" ]; then
-	printf '\n[ERROR:] python send file does not exist however email_report is set to true\nEXIT\N'
+	printf '\n[ERROR:] python %s file does not exist however email_report is set to true\nEXIT\n' "$py_mail"
 	exit 0
 fi
 
@@ -110,7 +111,7 @@ elif [[ $r_type == monthly ]] ; then
 	loop_date=("${date[1]}")
 	log_dir="${log_path}/${dir_month}"
 	log_smr="${log_dir}/${date[0]}_summary.log" # summary report dest
-	((monthly_vbs_rpt == 1)) && log_vbs="${log_dir}/${date[0]}_verbose.log" # verbose report dest
+	((monthly_vbs_rpt == 1)) && log_vbs="${log_dir}/${date[0]//-01}_verbose.log" # verbose report dest
 	email_extract="Per-Hour Traffic Daily Average" # for sed
 	old_logs="$old_month"
 
@@ -125,7 +126,7 @@ if ((${#mail_logs[@]} == 1)) ; then
 	mail_log="${mail_dir}/$log_name"
 else
 	for f in "${mail_logs[@]}" ; do
-		for d in "${loop_date[@]}" ; do
+		for d in "${loop_date[@]}" ; do # loop per day for weekly report
 			[[ $f =~ \.gz ]] && GREP="zgrep" || GREP="grep"
 			$GREP -E "^${d} " "$f" >> "${tmp_file[2]}"
 		done
@@ -139,13 +140,17 @@ fi
 # Create report
 pflogsumm "${day[@]}" "$mail_log" > "$log_smr"
 if [[ -n $log_vbs ]] ; then
-	pflogsumm --verbose-msg-detail "$mail_log" > "$log_vbs"
+	pflogsumm --verbose-msg-detail "${day[@]}" "$mail_log" > "$log_vbs"
 fi
 
 # Delete old logs
 if ((del_old == 1)) ; then
 	old_date="$(date --date="$old_logs days ago" "+%y-%m-%d")"
-	find "${log_dir}/" -type f ! -newermt "$old_date" -exec rm {} \;
+	if [[ -n $log_dir ]] ; then
+	# double check a path exists in $log_dir so not to execute a rm in /
+		find "${log_dir}/" -type f ! -newermt "$old_date" -iname "*.log" -exec rm {} \;
+		# using the iname for *.log is a safety catch as we are executing rm
+	fi
 fi
 
 # Create the summary for email ->
@@ -168,28 +173,28 @@ if ((email_report == 1)) ; then
 	printf '\n\n' >> "${tmp_file[0]}"
 
 	# Get the reject detail (blocked by rbl lists.)
-	msg_start[0]="message deferral detail"
-	msg_start[1]="message reject detail"
+	msg[0]="message deferral detail"
+	msg[1]="message reject detail"
 
 	# Check if there is a 'deferral' entry else extract from 'detail'
 	if grep "^${msg_start[0]}$" "$log_smr" ; then
-		msg_start=("${msg_start[0]}")
+		msg_start=("${msg[0]}")
 	else
-		msg_start=("${msg_start[1]}")
+		msg_start=("${msg[1]}")
 	fi
 
 	sed -n "/^${msg_start}/,/^    cannot find your hostname (total:/p" "$log_smr" >> "${tmp_file[0]}"
 
 	printf '\n\n' >> "${tmp_file[0]}"
 
-	msg_start=()
-	msg_start[0]="    Recipient address rejected:"
-	msg_start[1]="    Sender address rejected:"
+	msg=()
+	msg[0]="    Recipient address rejected:"
+	msg[1]="    Sender address rejected:"
 
-	if grep "^${msg_start[0]}$" "$log_smr" ; then
-		msg_start=("${msg_start[0]}")
-	elif grep "^${msg_start[1]}$" "$log_smr" ; then
-		msg_start=("${msg_start[1]}")
+	if grep "^${msg[0]}$" "$log_smr" ; then
+		msg_start=("${msg[0]}")
+	elif grep "^${msg[1]}$" "$log_smr" ; then
+		msg_start=("${msg[1]}")
 	else
 		msg_start=("message reject warning detail:")
 	fi
@@ -199,14 +204,6 @@ if ((email_report == 1)) ; then
 	sed -i '/^Warnings$/d' "${tmp_file[0]}"
 
 	sed -n '/^Fatal Errors:/,$p' "$log_smr" >> "${tmp_file[0]}"
-
-	# while read -r line ; do
-	# 	if grep -E -o "([0-9]{1,3}[\.]){3}[0-9]{1,3}" <<< "$line" ; then
-	# 		continue
-	# 	else
-	# 		echo "$line" >> "${tmp_file[0]}"
-	# 	fi
-	# done < "${tmp_file[1]}"
 
 	# Create email notofication
 
