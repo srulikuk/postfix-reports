@@ -178,9 +178,9 @@ if ((email_report == 1)) ; then
 
 	# Check if there is a 'deferral' entry else extract from 'detail'
 	if grep "^${msg_start[0]}$" "$log_smr" ; then
-		msg_start=("${msg[0]}")
+		msg_start="${msg[0]}"
 	else
-		msg_start=("${msg[1]}")
+		msg_start="${msg[1]}"
 	fi
 
 	sed -n "/^${msg_start}/,/^    cannot find your hostname (total:/p" "$log_smr" >> "${tmp_file[0]}"
@@ -192,11 +192,11 @@ if ((email_report == 1)) ; then
 	msg[1]="    Sender address rejected:"
 
 	if grep "^${msg[0]}$" "$log_smr" ; then
-		msg_start=("${msg[0]}")
+		msg_start="${msg[0]}"
 	elif grep "^${msg[1]}$" "$log_smr" ; then
-		msg_start=("${msg[1]}")
+		msg_start="${msg[1]}"
 	else
-		msg_start=("message reject warning detail:")
+		msg_start="message reject warning detail:"
 	fi
 
 	sed -n "/^${msg_start}/,/^Warnings/p" "$log_smr" >> "${tmp_file[0]}"
