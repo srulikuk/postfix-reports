@@ -120,9 +120,10 @@ fi
 # Postfix log files used to generate reports
 mapfile -t mail_logs < <(find "$mail_dir" -type f -iname "${log_name}*" -newermt "${date[0]}" -exec stat '--format=%y %n' {} \; | sort | sed 's,.* /,/,')
 
-# If the report period spans multiple log
-# files concate them into 1 temp file.
-if ((${#mail_logs[@]} == 1)) ; then
+# If the report period spans  multiple
+# log files extract the relevant dates
+# and concate them into one temp file.
+if ((${#mail_logs[@]} == 1)) && [[ $r_type == daily ]]; then
 	mail_log="${mail_dir}/$log_name"
 else
 	for f in "${mail_logs[@]}" ; do
