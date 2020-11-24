@@ -54,8 +54,14 @@ if ! pflogsumm --version > /dev/null ; then
 	exit 0
 fi
 
+# Check if logwatch is installed
+((run_logwatch == 1)) && if ! logwatch --version > /dev/null ; then
+	printf '\n[ERROR:] "run_logwatch" is set to  "true"\nhowever it does not seem to be installed\nEXIT\n'
+	exit 0
+fi
+
 # If email_report true check if py script exists
-if ((email_report == 1)) && ! [ -e "$py_mail" ]; then
+((email_report == 1)) && if ! [ -e "$py_mail" ]; then
 	printf '\n[ERROR:] python %s file does not exist however email_report is set to true\nEXIT\n' "$py_mail"
 	exit 0
 fi
@@ -73,6 +79,7 @@ trap cleanup EXIT
 tmp_file[0]="$(mktemp /tmp/XXXXXXXXXXX)"
 tmp_file[1]="$(mktemp /tmp/XXXXXXXXXXX)"
 tmp_file[2]="$(mktemp /tmp/XXXXXXXXXXX)"
+tmp_file[3]="$(mktemp /tmp/XXXXXXXXXXX)"
 
 day=()
 if [[ $r_type == daily ]] ; then
@@ -82,6 +89,7 @@ if [[ $r_type == daily ]] ; then
 	day[1]="yesterday"
 	date[0]="$(date -d "${day[1]}" "+%Y-%m-%d")" # 2020-01-01
 	date[1]="$(date -d "${day[1]}" "+%b %e")" # Jan  1
+	logwatch_date="${day[1]^}"
 	loop_date=("${date[1]}")
 	log_dir="${log_path}/${dir_day}"
 	log_smr="${log_dir}/${date[0]}_summary.log" # summary report dest
@@ -92,11 +100,12 @@ if [[ $r_type == daily ]] ; then
 elif [[ $r_type == weekly ]] ; then
 
 	# Dates for filenames, regex and report text.
-	date[0]="$(date -d 'last week' "+%Y-%m-%d")" # 2020-01-01
-	date[1]="$(date -d 'last week' "+%b %e")" # Jan  1
+	date[0]="$(date -d 'last monday' "+%Y-%m-%d")" # 2020-01-01
+	date[1]="$(date -d 'last monday' "+%b %e")" # Jan  1
 	for d in {0..6} ; do
 		loop_date+=("$(date -d "last monday + $d day" "+%b %e")")
 	done
+	logwatch_date="between $(date -d "${date[0]}" "+%D") and $(date -d "${date[0]} + 6 day" "+%D")"
 	log_dir="${log_path}/${dir_week}"
 	log_smr="${log_dir}/${date[0]}_summary.log" # summary report dest
 	((weekly_vbs_rpt == 1)) && log_vbs="${log_dir}/${date[0]}_verbose.log" # verbose report dest
@@ -109,6 +118,7 @@ elif [[ $r_type == monthly ]] ; then
 	date[0]="$(date -d 'last month' "+%Y-%m-01")" # 2020-01-01
 	date[1]="$(date -d 'last month' "+%b")" # Jan
 	loop_date=("${date[1]}")
+	logwatch_date="between $(date -d "${date[0]}" "+%D") and $(date -d "-$(date +%d) days" "+%D")"
 	log_dir="${log_path}/${dir_month}"
 	log_smr="${log_dir}/${date[0]}_summary.log" # summary report dest
 	((monthly_vbs_rpt == 1)) && log_vbs="${log_dir}/${date[0]//-01}_verbose.log" # verbose report dest
@@ -154,6 +164,17 @@ if ((del_old == 1)) ; then
 	fi
 fi
 
+# logwatch amavis report
+if ((run_logwatch == 1)) ; then
+	printf '\n\n\n' >> "$log_smr"
+	logwatch --service amavis --range "$logwatch_date" --detail med >> "$log_smr"
+	if [[ -n $log_vbs ]] ; then
+		printf '\n\n\n' >> "$log_smr"
+		logwatch --service amavis --range "$logwatch_date" --detail high >> "$log_vbs"
+	fi
+fi
+
+
 # Create the summary for email ->
 if ((email_report == 1)) ; then
 
@@ -165,10 +186,8 @@ if ((email_report == 1)) ; then
 	printf '%s Bad Logins\n------------\n' "$login_count" >> "${tmp_file[0]}"
 
 	# If there are failed logins extract them and add to summary.
-	if ((bad_logins == 1)) ; then
-		if ((login_count > 0)) ; then
-			grep -E 'unknown\[([0-9]{1,3}[\.]){3}[0-9]{1,3}\]: SASL PLAIN authentication failed' "$log_smr" >> "${tmp_file[0]}"
-		fi
+	((bad_logins == 1)) && if ((login_count > 0)) ; then
+		grep -E 'unknown\[([0-9]{1,3}[\.]){3}[0-9]{1,3}\]: SASL PLAIN authentication failed' "$log_smr" >> "${tmp_file[0]}"
 	fi
 
 	printf '\n\n' >> "${tmp_file[0]}"
@@ -205,6 +224,16 @@ if ((email_report == 1)) ; then
 	sed -i '/^Warnings$/d' "${tmp_file[0]}"
 
 	sed -n '/^Fatal Errors:/,$p' "$log_smr" >> "${tmp_file[0]}"
+
+	# logwatch amavis report
+	if ((run_logwatch == 1)) ; then
+		sed -n '/---* Amavisd-new Begin ---*/,/ [******] Detail/p' "$log_smr" >> "${tmp_file[3]}"
+		sed -Ei '/.*[******] (Summary|Detail) .*/d' "${tmp_file[3]}"
+		grep -E -B2 -A11 '^ Spam Score Percentiles' "$log_smr" >> "${tmp_file[3]}"
+		printf '\n\n---------------------- Amavisd-new End -------------------------\n' >> "${tmp_file[3]}"
+		printf '\n\n' >> "${tmp_file[0]}"
+		cat "${tmp_file[3]}" >> "${tmp_file[0]}"
+	fi
 
 	# Create email notofication
 
