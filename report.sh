@@ -223,11 +223,11 @@ if ((email_report == 1)) ; then
 
 	sed -i '/^Warnings$/d' "${tmp_file[0]}"
 
-	sed -n '/^Fatal Errors:/,$p' "$log_smr" >> "${tmp_file[0]}"
+	sed -n '/^Fatal Errors:/,/Master daemon messages/p' "$log_smr" >> "${tmp_file[0]}"
 
 	# logwatch amavis report
 	if ((run_logwatch == 1)) ; then
-		sed -n '/---* Amavisd-new Begin ---*/,/.*[******] Detail/p' "$log_smr" >> "${tmp_file[3]}"
+		sed -n '/---* Amavisd-new Begin ---*/,/.*[******] Detail/p' "$log_smr" > "${tmp_file[3]}"
 		sed -Ei '/.*[******] (Summary|Detail) .*/d' "${tmp_file[3]}"
 		grep -E -B2 -A11 '^ Spam Score Percentiles' "$log_smr" >> "${tmp_file[3]}"
 		printf '\n\n---------------------- Amavisd-new End -------------------------\n' >> "${tmp_file[3]}"
