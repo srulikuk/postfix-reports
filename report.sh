@@ -7,11 +7,9 @@
 
 # NOTE:
 # All the configurable paramaters are set
-# in report.vars. It's  ideal to copy the
-# report.vars  to "lc_report.vars" so the
-# the configured  paramaters do  not  get
-# overwritten when executing  a  git pull.
-
+# in  report.conf.  It's highly advisable
+# to  copy  the  "report.conf"  file  to 
+# ".report.conf" for git ignore purposes.
 
 # Check argument was given
 case "$1" in
@@ -35,13 +33,13 @@ fi
 
 # Source the vars
 current_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-if [[ -e ${current_dir}/lc_report.vars ]] ; then
-	# shellcheck source=lc_report.vars
-	source "${current_dir}/lc_report.vars"
+if [[ -e ${current_dir}/.report.conf ]] ; then
+	# shellcheck source=.report.conf
+	source "${current_dir}/.report.conf"
 else
-	if [[ -e "${current_dir}/report.vars" ]] ; then
-		# shellcheck source=report.vars
-		source "${current_dir}/report.vars"
+	if [[ -e "${current_dir}/report.conf" ]] ; then
+		# shellcheck source=report.conf
+		source "${current_dir}/report.conf"
 	else
 		printf '\n[ERROR:] Cannot find the vars source file\nEXIT\n'
 		exit 0
@@ -167,10 +165,10 @@ fi
 # logwatch amavis report
 if ((run_logwatch == 1)) ; then
 	printf '\n\n\n' >> "$log_smr"
-	logwatch --service amavis --range "$logwatch_date" --detail med >> "$log_smr"
+	logwatch --service "$log_service" --range "$logwatch_date" --detail med >> "$log_smr"
 	if [[ -n $log_vbs ]] ; then
 		printf '\n\n\n' >> "$log_smr"
-		logwatch --service amavis --range "$logwatch_date" --detail high >> "$log_vbs"
+		logwatch --service "$log_service" --range "$logwatch_date" --detail high >> "$log_vbs"
 	fi
 fi
 
@@ -227,10 +225,10 @@ if ((email_report == 1)) ; then
 
 	# logwatch amavis report
 	if ((run_logwatch == 1)) ; then
-		sed -n '/---* Amavisd-new Begin ---*/,/.*[******] Detail/p' "$log_smr" > "${tmp_file[3]}"
+		sed -n "/---* ${log_service^}.* Begin ---*/,/.*[******] Detail/p" "$log_smr" > "${tmp_file[3]}"
 		sed -Ei '/.*[******] (Summary|Detail) .*/d' "${tmp_file[3]}"
-		grep -E -B2 -A11 '^ Spam Score Percentiles' "$log_smr" >> "${tmp_file[3]}"
-		printf '\n\n---------------------- Amavisd-new End -------------------------\n' >> "${tmp_file[3]}"
+		grep -E -B2 -A11 '^ Spam Score Percentiles' "$log_smr" >> "${tmp_file[3]}" # not sure if this is present in spamassassin reports.
+		printf '\n\n---------------------- %s End -------------------------\n' "${log_service^}" >> "${tmp_file[3]}"
 		printf '\n\n' >> "${tmp_file[0]}"
 		cat "${tmp_file[3]}" >> "${tmp_file[0]}"
 	fi
