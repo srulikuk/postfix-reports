@@ -3,7 +3,7 @@ Automated reports from postfix log files using pflogsumm to generate daily / wee
 
 pflogsumm must be installed for it to work.  
 
-Optional reporting for amavis, `logwatch` must be installed, to enable this report set the var `run_logwatch` to `1` in the vars file.
+Optional reporting for amavis or spamAssassin, `logwatch` must be installed, to enable this report set the var `run_logwatch` to `1` in the conf file. To use it for spamAssassin instead of amavis change the `log_service` var to `spamassassin`.
 
 The script will gather the mail logs which contain the period of the report and concatenate then into a single file for pflogsumm.
 
@@ -14,9 +14,9 @@ Uses python to send the email summary (send.py file).
 
 
 **IMPORTANT:**  
-All the configurable parameters for the bash script are set in `report.vars` file, it's advisable to copy it to `lc_report.vars` (prefix `'lc_'` is in `.gitignore`) so the the configured parameters do not get overwritten when executing a git stash / pull.  
+All the configurable parameters for the bash script are set in `report.conf` file, it's highly advisable to copy it to `.report.conf` so the the configured parameters do not get overwritten when executing a git stash / pull. ('.' files are in gitignore)  
 
-Same applies to `send.py`, copy it to `lc_send.py` to ensure it does not get overwritten **and crucially not to push changes to git as it contains mailserver user/pass**.  
+Same applies to `send.py`, copy it to `.send.py` to ensure it does not get overwritten **and crucially not to push changes to git as it contains mailserver user/pass**.  
 
 
 **USAGE:**  
@@ -204,4 +204,4 @@ Percent of Hits            3.00%     6.52%    64.31%    10.58%     5.36%     8.7
 
 ```
 ___
-#### (Amavisd-new report is only included if logwatch is installed and its enabled in the vars file)
+#### (Amavisd-new report is only included if logwatch is installed and its enabled in the conf file)
